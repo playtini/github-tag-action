@@ -30,17 +30,6 @@ echo -e "\tVERBOSE: ${verbose}"
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
-pre_release="true"
-IFS=',' read -ra branch <<< "$release_branches"
-for b in "${branch[@]}"; do
-    echo "Is $b a match for ${current_branch}"
-    if [[ "${current_branch}" =~ $b ]]
-    then
-        pre_release="false"
-    fi
-done
-echo "pre_release = $pre_release"
-
 # fetch tags
 git fetch --tags
 
@@ -99,18 +88,7 @@ case "$log" in
         fi 
         ;;
 esac
-
-if $pre_release
-then
-    # Already a prerelease available, bump it
-    if [[ "$pre_tag" == *"$new"* ]]; then
-        new=$(semver -i prerelease $pre_tag --preid $suffix); part="pre-$part"
-    else
-        new="$new-$suffix.1"; part="pre-$part"
-    fi
-fi
-
-echo $part
+new=$new$suffix
 
 # did we get a new tag?
 if [ ! -z "$new" ]
@@ -127,12 +105,7 @@ then
     new="$custom_tag"
 fi
 
-if $pre_release
-then
-    echo -e "Bumping tag ${pre_tag}. \n\tNew tag ${new}"
-else
-    echo -e "Bumping tag ${tag}. \n\tNew tag ${new}"
-fi
+echo -e "Bumping tag ${tag}. \n\tNew tag ${new}"
 
 # set outputs
 echo ::set-output name=new_tag::$new
