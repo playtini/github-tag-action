@@ -88,7 +88,7 @@ case "$log" in
         fi 
         ;;
 esac
-new=$new$suffix
+new=$new-$suffix
 
 # did we get a new tag?
 if [ ! -z "$new" ]
