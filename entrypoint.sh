@@ -74,17 +74,18 @@ then
   echo $log
 fi
 
+
 case "$log" in
-    *#major* ) new=$(semver -i major $tag); part="major";;
-    *#minor* ) new=$(semver -i minor $tag); part="minor";;
-    *#patch* ) new=$(semver -i patch $tag); part="patch";;
+    *#major* ) new=$(semver -i major $(echo $tag | sed "s/-$suffix//g")); part="major";;
+    *#minor* ) new=$(semver -i minor $(echo $tag | sed "s/-$suffix//g")); part="minor";;
+    *#patch* ) new=$(semver -i patch $(echo $tag | sed "s/-$suffix//g")); part="patch";;
     *#none* ) 
         echo "Default bump was set to none. Skipping..."; echo ::set-output name=new_tag::$tag; echo ::set-output name=tag::$tag; exit 0;;
     * ) 
         if [ "$default_semvar_bump" == "none" ]; then
             echo "Default bump was set to none. Skipping..."; echo ::set-output name=new_tag::$tag; echo ::set-output name=tag::$tag; exit 0 
         else 
-            new=$(semver -i "${default_semvar_bump}" $tag); part=$default_semvar_bump 
+            new=$(semver -i "${default_semvar_bump}" $(echo $tag | sed "s/-$suffix//g")); part=$default_semvar_bump 
         fi 
         ;;
 esac
