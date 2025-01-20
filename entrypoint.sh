@@ -124,6 +124,13 @@ echo tag=$new >> $GITHUB_OUTPUT
 # create local git tag
 git tag $new
 
+echo 'Debug:'
+echo "$new: ${new}"
+echo "$GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+echo "$GITHUB_EVENT_PATH: ${GITHUB_EVENT_PATH}"
+
+ls -lah .
+
 # push new tag ref to github
 dt=$(date '+%Y-%m-%dT%H:%M:%SZ')
 full_name=$GITHUB_REPOSITORY
