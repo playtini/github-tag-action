@@ -11,6 +11,8 @@ outputs:
     description: 'The latest tag after running this action'
   part:
     description: 'The part of version which was bumped'
+  old_tag:
+    description: 'The previous tag before the bump'
 branding:
   icon: 'git-merge'  
   color: 'purple'

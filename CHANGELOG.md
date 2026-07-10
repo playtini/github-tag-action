@@ -10,6 +10,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added — features picked from upstream
 
+- **Configurable bump tokens** (`entrypoint.sh`, `README.md`). `MAJOR_STRING_TOKEN`,
+  `MINOR_STRING_TOKEN`, `PATCH_STRING_TOKEN`, `NONE_STRING_TOKEN` — default to
+  `#major`/`#minor`/`#patch`/`#none`, so no behavior change unless overridden.
+- **`BRANCH_HISTORY` option** (`entrypoint.sh`, `README.md`). Selects which commit messages
+  are scanned for bump tokens: `compare` (default — all commits since the last tag, the
+  fork's existing behavior), `last` (latest commit only), or `full` (since `DEFAULT_BRANCH`,
+  with `DEFAULT_BRANCH`/`$GITHUB_BASE_REF`/autodetect fallback).
+- **`old_tag` output** (`entrypoint.sh`, `action.yml`, `README.md`). Emits the previous tag
+  before the bump, on the normal path and on all skip paths.
+- **Smoke-test suite** (`test/smoke.bats`, `.github/workflows/test.yml`). Minimal BATS cases
+  running the entrypoint in `DRY_RUN` against throwaway repos; runs in CI on push/PR.
 - **`GIT_API_TAGGING` option** (`entrypoint.sh`, `README.md`). Controls how the tag is
   pushed: `true` (default, unchanged behavior) posts via the GitHub refs API; `false` uses
   `git push`, which does not depend on the event payload's `git_refs_url`.

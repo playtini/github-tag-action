@@ -15,6 +15,12 @@ suffix=${SUFFIX:-master}
 verbose=${VERBOSE:-true}
 git_api_tagging=${GIT_API_TAGGING:-true}
 tag_message=${TAG_MESSAGE:-""}
+major_string_token=${MAJOR_STRING_TOKEN:-#major}
+minor_string_token=${MINOR_STRING_TOKEN:-#minor}
+patch_string_token=${PATCH_STRING_TOKEN:-#patch}
+none_string_token=${NONE_STRING_TOKEN:-#none}
+branch_history=${BRANCH_HISTORY:-compare}
+default_branch=${DEFAULT_BRANCH:-$GITHUB_BASE_REF}
 
 # since https://github.blog/2022-04-12-git-security-vulnerability-announced/ the runner
 # workspace is owned by a different user than the action container; mark it safe
@@ -35,6 +41,12 @@ echo -e "\tSUFFIX: ${suffix}"
 echo -e "\tVERBOSE: ${verbose}"
 echo -e "\tGIT_API_TAGGING: ${git_api_tagging}"
 echo -e "\tTAG_MESSAGE: ${tag_message}"
+echo -e "\tMAJOR_STRING_TOKEN: ${major_string_token}"
+echo -e "\tMINOR_STRING_TOKEN: ${minor_string_token}"
+echo -e "\tPATCH_STRING_TOKEN: ${patch_string_token}"
+echo -e "\tNONE_STRING_TOKEN: ${none_string_token}"
+echo -e "\tBRANCH_HISTORY: ${branch_history}"
+echo -e "\tDEFAULT_BRANCH: ${default_branch}"
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
@@ -67,11 +79,8 @@ echo "tag: $tag, pre_tag: $pre_tag"
 # if there are none, start tags at INITIAL_VERSION which defaults to 0.0.0
 if [ -z "$tag" ]
 then
-    log=$(git log --pretty='%B')
     tag="$initial_version"
     pre_tag="$initial_version"
-else
-    log=$(git log $tag..HEAD --pretty='%B')
 fi
 
 # get current commit hash for tag
@@ -84,25 +93,51 @@ echo "tag_commit: $tag_commit, commit: $commit"
 
 if [ "$tag_commit" == "$commit" ]; then
     echo "No new commits since previous tag. Skipping..."
+    echo old_tag=$tag >> $GITHUB_OUTPUT
     echo tag=$tag >> $GITHUB_OUTPUT
     exit 0
+fi
+
+# BRANCH_HISTORY=full diffs against the default branch, so make sure we have one
+if [ "$branch_history" == "full" ] && [ -z "$default_branch" ]
+then
+    default_branch=$(git branch -rl '*/master' '*/main' | cut -d / -f2)
+    if [ -z "$default_branch" ]
+    then
+        echo "::error::BRANCH_HISTORY=full requires DEFAULT_BRANCH to be set."
+        exit 1
+    fi
+fi
+
+# choose which commit messages to scan for #bump tokens
+if [ -z "$tag_commit" ]
+then
+    # no previous tag exists — scan the whole history
+    log=$(git log --pretty='%B')
+else
+    case "$branch_history" in
+        last)    log=$(git show -s --format='%B') ;;
+        full)    log=$(git log ${default_branch}..HEAD --pretty='%B') ;;
+        compare) log=$(git log $tag..HEAD --pretty='%B') ;;
+        * ) echo "Unrecognised BRANCH_HISTORY: $branch_history"; exit 1 ;;
+    esac
 fi
 
 echo "log: $log"
 
 
 case "$log" in
-    *#major* ) new=$(semver -i major $(echo $tag | sed "s/-$suffix//g")); part="major";;
-    *#minor* ) new=$(semver -i minor $(echo $tag | sed "s/-$suffix//g")); part="minor";;
-    *#patch* ) new=$(semver -i patch $(echo $tag | sed "s/-$suffix//g")); part="patch";;
-    *#none* ) 
-        echo "Default bump was set to none. Skipping..."; echo new_tag=$tag >> $GITHUB_OUTPUT; echo tag=$tag >> $GITHUB_OUTPUT; exit 0;;
-    * ) 
+    *$major_string_token* ) new=$(semver -i major $(echo $tag | sed "s/-$suffix//g")); part="major";;
+    *$minor_string_token* ) new=$(semver -i minor $(echo $tag | sed "s/-$suffix//g")); part="minor";;
+    *$patch_string_token* ) new=$(semver -i patch $(echo $tag | sed "s/-$suffix//g")); part="patch";;
+    *$none_string_token* )
+        echo "Default bump was set to none. Skipping..."; echo old_tag=$tag >> $GITHUB_OUTPUT; echo new_tag=$tag >> $GITHUB_OUTPUT; echo tag=$tag >> $GITHUB_OUTPUT; exit 0;;
+    * )
         if [ "$default_semvar_bump" == "none" ]; then
-            echo "Default bump was set to none. Skipping..."; echo new_tag=$tag >> $GITHUB_OUTPUT; echo tag=$tag >> $GITHUB_OUTPUT; exit 0
-        else 
-            new=$(semver -i "${default_semvar_bump}" $(echo $tag | sed "s/-$suffix//g")); part=$default_semvar_bump 
-        fi 
+            echo "Default bump was set to none. Skipping..."; echo old_tag=$tag >> $GITHUB_OUTPUT; echo new_tag=$tag >> $GITHUB_OUTPUT; echo tag=$tag >> $GITHUB_OUTPUT; exit 0
+        else
+            new=$(semver -i "${default_semvar_bump}" $(echo $tag | sed "s/-$suffix//g")); part=$default_semvar_bump
+        fi
         ;;
 esac
 new=$new-$suffix
@@ -127,6 +162,7 @@ echo -e "Bumping tag ${tag}. \n\tNew tag ${new}"
 # set outputs
 echo new_tag=$new >> $GITHUB_OUTPUT
 echo part=$part >> $GITHUB_OUTPUT
+echo old_tag=$tag >> $GITHUB_OUTPUT
 
 # use dry run to determine the next tag
 if $dryrun

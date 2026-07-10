@@ -44,7 +44,20 @@ Outputs are emitted via `>> $GITHUB_OUTPUT` (migrated from the deprecated `::set
 
 ## Testing changes
 
-There is no automated test harness. To exercise a change, run the container against a real (or throwaway) git repo with the required env set, e.g.:
+**Automated:** `test/smoke.bats` runs the entrypoint (in `DRY_RUN`) against throwaway git
+repos and asserts the emitted outputs. It runs in CI via `.github/workflows/test.yml` on
+every push/PR. To run locally you need `bats`, `git`, `jq`, and `semver` on PATH, then:
+
+```bash
+bats test/
+```
+
+Each case must create its repo under `mktemp -d` and `cd` into it (with a hard failure
+guard) — the script issues real `git commit`/`git tag` calls, so a failed `cd` would run
+them against this repo. Set `HOME` to a temp dir per case so the entrypoint's
+`git config --global` doesn't touch your real `~/.gitconfig`.
+
+**Manual:** run the container against a real (or throwaway) git repo with env set, e.g.:
 
 ```bash
 docker build -t github-tag-action .

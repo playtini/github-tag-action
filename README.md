@@ -51,12 +51,19 @@ _NOTE: set the fetch-depth for `actions/checkout@v2` to be sure you retrieve all
 * **VERBOSE** *(optional)* - Print git logs. For some projects these logs may be very large. Possible values are ```true``` (default) and ```false```. 
 * **GIT_API_TAGGING** *(optional)* - How to push the tag. `true` (default) posts the tag via the GitHub refs API; `false` uses `git push`. Possible values are ```true``` and ```false```.
 * **TAG_MESSAGE** *(optional)* - When set, creates an annotated tag (`git tag -a -m`) instead of a lightweight one. Note: the annotation is only preserved when `GIT_API_TAGGING` is `false`; the refs API path pushes a lightweight tag.
+* **MAJOR_STRING_TOKEN** *(optional)* - Commit-message token that triggers a major bump. Default `#major`.
+* **MINOR_STRING_TOKEN** *(optional)* - Commit-message token that triggers a minor bump. Default `#minor`.
+* **PATCH_STRING_TOKEN** *(optional)* - Commit-message token that triggers a patch bump. Default `#patch`.
+* **NONE_STRING_TOKEN** *(optional)* - Commit-message token that skips bumping. Default `#none`.
+* **BRANCH_HISTORY** *(optional)* - Which commit messages are scanned for bump tokens: `compare` (default, all commits since the last tag), `last` (only the latest commit), or `full` (all commits since `DEFAULT_BRANCH`).
+* **DEFAULT_BRANCH** *(optional)* - Branch to diff against when `BRANCH_HISTORY=full`. Falls back to `$GITHUB_BASE_REF`, then autodetection of `master`/`main`.
 
 #### Outputs
 
 * **new_tag** - The value of the newly created tag.
 * **tag** - The value of the latest tag after running this action.
 * **part** - The part of version which was bumped.
+* **old_tag** - The previous tag before the bump.
 
 > ***Note:*** This action creates a [lightweight tag](https://developer.github.com/v3/git/refs/#create-a-reference).
 
