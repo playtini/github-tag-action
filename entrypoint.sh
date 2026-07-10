@@ -13,6 +13,8 @@ initial_version=${INITIAL_VERSION:-0.0.0}
 tag_context=${TAG_CONTEXT:-repo}
 suffix=${SUFFIX:-master}
 verbose=${VERBOSE:-true}
+git_api_tagging=${GIT_API_TAGGING:-true}
+tag_message=${TAG_MESSAGE:-""}
 
 # since https://github.blog/2022-04-12-git-security-vulnerability-announced/ the runner
 # workspace is owned by a different user than the action container; mark it safe
@@ -31,6 +33,8 @@ echo -e "\tINITIAL_VERSION: ${initial_version}"
 echo -e "\tTAG_CONTEXT: ${tag_context}"
 echo -e "\tSUFFIX: ${suffix}"
 echo -e "\tVERBOSE: ${verbose}"
+echo -e "\tGIT_API_TAGGING: ${git_api_tagging}"
+echo -e "\tTAG_MESSAGE: ${tag_message}"
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
@@ -133,8 +137,17 @@ fi
 
 echo tag=$new >> $GITHUB_OUTPUT
 
-# create local git tag
-git tag $new
+# create local git tag; annotated when a message is supplied, else lightweight
+# NOTE: annotations only survive when pushed via git (GIT_API_TAGGING=false); the refs
+# API path below recreates a lightweight tag from the commit SHA and drops the message.
+if [ -n "$tag_message" ]
+then
+    echo "EVENT: creating annotated local tag $new with message: $tag_message"
+    git tag -a "$new" -m "$tag_message"
+else
+    echo "EVENT: creating local tag $new"
+    git tag -f "$new"
+fi
 
 echo 'Debug:'
 echo "$new: ${new}"
@@ -143,17 +156,19 @@ echo "$GITHUB_EVENT_PATH: ${GITHUB_EVENT_PATH}"
 
 ls -lah .
 
-# push new tag ref to github
-dt=$(date '+%Y-%m-%dT%H:%M:%SZ')
-full_name=$GITHUB_REPOSITORY
-git_refs_url=$(jq .repository.git_refs_url $GITHUB_EVENT_PATH | tr -d '"' | sed 's/{\/sha}//g')
+if $git_api_tagging
+then
+    # push new tag ref via the github refs API
+    dt=$(date '+%Y-%m-%dT%H:%M:%SZ')
+    full_name=$GITHUB_REPOSITORY
+    git_refs_url=$(jq .repository.git_refs_url $GITHUB_EVENT_PATH | tr -d '"' | sed 's/{\/sha}//g')
 
-echo "$dt: **pushing tag $new to repo $full_name"
+    echo "$dt: **pushing tag $new to repo $full_name"
 
-git_refs_response=$(
-curl -s -X POST $git_refs_url \
--H "Authorization: token $GITHUB_TOKEN" \
--d @- << EOF
+    git_refs_response=$(
+    curl -s -X POST $git_refs_url \
+    -H "Authorization: token $GITHUB_TOKEN" \
+    -d @- << EOF
 
 {
   "ref": "refs/tags/$new",
@@ -162,12 +177,17 @@ curl -s -X POST $git_refs_url \
 EOF
 )
 
-git_ref_posted=$( echo "${git_refs_response}" | jq .ref | tr -d '"' )
+    git_ref_posted=$( echo "${git_refs_response}" | jq .ref | tr -d '"' )
 
-echo "::debug::${git_refs_response}"
-if [ "${git_ref_posted}" = "refs/tags/${new}" ]; then
-  exit 0
+    echo "::debug::${git_refs_response}"
+    if [ "${git_ref_posted}" = "refs/tags/${new}" ]; then
+      exit 0
+    else
+      echo "::error::Tag was not created properly."
+      exit 1
+    fi
 else
-  echo "::error::Tag was not created properly."
-  exit 1
+    # push new tag via the git cli (preserves annotated tags)
+    echo "**pushing tag $new to origin"
+    git push -f origin "$new" || exit 1
 fi

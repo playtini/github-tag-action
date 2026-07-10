@@ -47,8 +47,10 @@ _NOTE: set the fetch-depth for `actions/checkout@v2` to be sure you retrieve all
 * **DRY_RUN** *(optional)* - Determine the next version without tagging the branch. The workflow can use the outputs `new_tag` and `tag` in subsequent steps. Possible values are ```true``` and ```false``` (default).
 * **INITIAL_VERSION** *(optional)* - Set initial version before bump. Default `0.0.0`.
 * **TAG_CONTEXT** *(optional)* - Set the context of the previous tag. Possible values are `repo` (default) or `branch`.
-* **PRERELEASE_SUFFIX** *(optional)* - Suffix for your prerelease versions, `beta` by default. Note this will only be used if a prerelease branch.
+* **SUFFIX** *(optional)* - Suffix appended to every generated tag (this fork always appends it), `master` by default. E.g. `1.2.3-master`.
 * **VERBOSE** *(optional)* - Print git logs. For some projects these logs may be very large. Possible values are ```true``` (default) and ```false```. 
+* **GIT_API_TAGGING** *(optional)* - How to push the tag. `true` (default) posts the tag via the GitHub refs API; `false` uses `git push`. Possible values are ```true``` and ```false```.
+* **TAG_MESSAGE** *(optional)* - When set, creates an annotated tag (`git tag -a -m`) instead of a lightweight one. Note: the annotation is only preserved when `GIT_API_TAGGING` is `false`; the refs API path pushes a lightweight tag.
 
 #### Outputs
 

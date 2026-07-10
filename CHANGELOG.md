@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## 2026-07-10
 
+### Added — features picked from upstream
+
+- **`GIT_API_TAGGING` option** (`entrypoint.sh`, `README.md`). Controls how the tag is
+  pushed: `true` (default, unchanged behavior) posts via the GitHub refs API; `false` uses
+  `git push`, which does not depend on the event payload's `git_refs_url`.
+- **`TAG_MESSAGE` option** (`entrypoint.sh`, `README.md`). When set, creates an annotated
+  tag (`git tag -a -m`) instead of a lightweight one. The annotation is only preserved when
+  `GIT_API_TAGGING=false`; the refs API path pushes a lightweight tag from the commit SHA.
+
+### Changed
+
+- **Base image bumped to `node:20-alpine`** (`Dockerfile`), replacing the EOL
+  `alpine:3.10` (2019) with its ancient bundled Node/npm. Also adds `git-lfs` to the image.
+- **README options refreshed** — documented `SUFFIX` (replacing the stale upstream
+  `PRERELEASE_SUFFIX` entry that never matched this fork) and the two new options above.
+
 ### Fixed — hardening picked from upstream (`entrypoint.sh`)
 
 These are correctness/robustness fixes cherry-picked from upstream. None of them change
