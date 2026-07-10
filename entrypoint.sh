@@ -14,6 +14,10 @@ tag_context=${TAG_CONTEXT:-repo}
 suffix=${SUFFIX:-master}
 verbose=${VERBOSE:-true}
 
+# since https://github.blog/2022-04-12-git-security-vulnerability-announced/ the runner
+# workspace is owned by a different user than the action container; mark it safe
+git config --global --add safe.directory /github/workspace
+
 cd ${GITHUB_WORKSPACE}/${source}
 
 echo "*** CONFIGURATION ***"
@@ -33,18 +37,26 @@ current_branch=$(git rev-parse --abbrev-ref HEAD)
 # fetch tags
 git fetch --tags
 
-# get latest tag that looks like a semver (with or without v)
+# get latest tag that looks like a semver (with or without v), carrying our suffix
+tagFmt="^v?[0-9]+\.[0-9]+\.[0-9]+(-$suffix)$"
+
+# collect the git refs once, based on context
+git_refs=
 case "$tag_context" in
-    *repo*) 
-        tag=$(git for-each-ref --sort=-v:refname --format '%(refname:lstrip=2)' | grep -E "^v?[0-9]+\.[0-9]+\.[0-9]+(-$suffix)$" | head -n1)
-        pre_tag=$(git for-each-ref --sort=-v:refname --format '%(refname:lstrip=2)' | grep -E "^v?[0-9]+\.[0-9]+\.[0-9]+(-$suffix)$" | head -n1)
+    *repo*)
+        git_refs=$(git for-each-ref --sort=-v:refname --format '%(refname:lstrip=2)')
         ;;
-    *branch*) 
-        tag=$(git tag --list --merged HEAD --sort=-v:refname | grep -E "^v?[0-9]+\.[0-9]+\.[0-9]+(-$suffix)$" | head -n1)
-        pre_tag=$(git tag --list --merged HEAD --sort=-v:refname | grep -E "^v?[0-9]+\.[0-9]+\.[0-9]+(-$suffix)$" | head -n1)
+    *branch*)
+        git_refs=$(git tag --list --merged HEAD --sort=-v:refname)
         ;;
     * ) echo "Unrecognised context"; exit 1;;
 esac
+
+# grep with '|| true' so a no-match (exit 1) doesn't trip pipefail; head reads from a
+# here-string, not a pipe, so the previous 'grep | head' SIGPIPE hazard is gone
+matching_tag_refs=$( (grep -E "$tagFmt" <<< "$git_refs") || true)
+tag=$(head -n 1 <<< "$matching_tag_refs")
+pre_tag="$tag"
 
 echo "tag: $tag, pre_tag: $pre_tag"
 
@@ -59,7 +71,7 @@ else
 fi
 
 # get current commit hash for tag
-tag_commit=$(git rev-list -n 1 $tag)
+tag_commit=$(git rev-list -n 1 "$tag" || true)
 
 # get current commit hash
 commit=$(git rev-parse HEAD)
@@ -112,7 +124,7 @@ echo -e "Bumping tag ${tag}. \n\tNew tag ${new}"
 echo new_tag=$new >> $GITHUB_OUTPUT
 echo part=$part >> $GITHUB_OUTPUT
 
-# use dry run to determine the next tag
+# use dry run to determine the next tag
 if $dryrun
 then
     echo tag=$tag >> $GITHUB_OUTPUT
